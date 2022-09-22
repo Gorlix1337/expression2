@@ -1,0 +1,13 @@
+@name explosion() applyForce
+if(first())
+{
+    function void applyExplosionForce(Ent:entity,Vec:vector)
+    {
+        if(Ent:isValid())
+        {
+            local BoxCenter=Ent:boxCenterW()
+            local BoxMaxMultipliedByNormal=Ent:aabbMax()*Vec:normalized()
+            explosion(Vec:length(),(BoxCenter-BoxMaxMultipliedByNormal*2):distance(BoxCenter),BoxCenter-(BoxMaxMultipliedByNormal*1.5))
+        }
+    }
+}
