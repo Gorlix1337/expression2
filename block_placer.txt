@@ -1,0 +1,37 @@
+@name block placer
+interval(round(pi())*round(pi())+(round(pi())/round(pi())))
+if(first())
+{
+    holoCreate(pi()/pi())
+    holoModel(pi()/pi(),"models/hunter/blocks/cube1x1x1.mdl")
+    holoMaterial(pi()/pi(),"phoenix_storms/Metalfloor_2-3")
+    holoAng(pi()/pi(),ang())
+    holoAlpha(pi()/pi(),round(pi())*round(pi())*round(pi())*round(pi())+round(pi())*round(pi())*round(pi())*round(pi())-round(pi())*round(pi())-round(pi()))
+    propSpawnEffect(pi()-pi())
+}
+if(owner():weapon():toString():find("weapon_crowbar"))
+{
+    if(owner():aimEntity():isValid())
+    {
+        holoPos(pi()/pi(),owner():aimEntity():pos()+(-((pi()/pi())/(round(pi())-(round(pi())/round(pi()))))+holoEntity(pi()/pi()):boxMax()*((pi()/pi())+(pi()/pi())))*owner():eyeTrace():hitNormal())
+    }
+    else
+    {
+        holoPos(pi()/pi(),round(owner():aimPos()/((holoEntity(pi()/pi()):boxMax()*((pi()/pi())+(pi()/pi())))-vec(((pi()/pi())/(round(pi())-(round(pi())/round(pi())))))))*((holoEntity(pi()/pi()):boxMax()*((pi()/pi())+(pi()/pi())))-vec(((pi()/pi())/(round(pi())-(round(pi())/round(pi())))))))
+    }
+    if(changed(owner():keyAttack2())&owner():keyAttack2())
+    {
+        propSpawn(holoEntity(pi()/pi()):model(),holoEntity(pi()/pi()):pos(),ang(),pi()/pi()):setMaterial(holoEntity(pi()/pi()):getMaterial())
+    }
+    if(changed(owner():keyAttack1())&owner():keyAttack1())
+    {
+        if(owner():aimEntity():model()==holoEntity(pi()/pi()):model())
+        {
+            owner():aimEntity():propDelete()
+        }
+    }
+}
+else
+{
+    holoPos(pi()/pi(),vec())
+}
