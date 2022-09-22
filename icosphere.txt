@@ -1,0 +1,122 @@
+@persist ToSpawn:table Info:table Stack:table X GeneratingState SpawnedProps:array CPUGenerationPercent Radius OutAmount
+if(first())
+{
+    # SETTINGS:
+    Radius=700
+    Division=3
+    CPUGenerationPercent=1
+    
+    function void holoPoly(ID,[V1 V2 V3]:vector,Material:string,Color:vector)
+    {
+        local Middle=(V1+V2+V3)/3
+        holoCreate(ID,Middle,vec(10,10,0.1)#[SCALE]#,(V2-V1):cross(V3-V1):normalized():toAngle()+ang(90,0,0),Color,"models/hunter/plates/plate1x1.mdl")
+        holoMaterial(ID,Material)
+        holoClipEnabled(ID,1)
+        for(I=1,3)
+        {
+            holoClipEnabled(ID,I,1)
+        }
+        holoClip(ID,1,holoEntity(ID):toLocal((V1+V2)/2),holoEntity(ID):toLocalAxis((V1-V2):cross(holoEntity(ID):up())),0)
+        holoClip(ID,2,holoEntity(ID):toLocal((V2+V3)/2),holoEntity(ID):toLocalAxis((V2-V3):cross(holoEntity(ID):up())),0)
+        holoClip(ID,3,holoEntity(ID):toLocal((V1+V3)/2),holoEntity(ID):toLocalAxis((V3-V1):cross(holoEntity(ID):up())),0)
+    }
+    propSpawnASync(1)
+    runOnTick(1)
+    runOnLast(1)
+    GeneratingState=1
+    #function number remap(Value, Start1, Stop1, Start2, Stop2)
+    #{
+        #return Start2 + (Stop2 - Start2) * ((Value - Start1) / (Stop1 - Start1))
+    #}
+    function void subdivide(V1:vector,V2:vector,V3:vector,Depth)
+    {
+        Stack:pushTable(table(V1,V2,V3,Depth))
+    }
+    function void subdivideC(V1:vector,V2:vector,V3:vector,Depth)
+    {
+        switch(Depth)
+        {
+            case 0,
+            #output of triangle: V1, V2 and V3
+            ToSpawn:pushArray(array(V1,V2,V3))
+            break
+            default,
+            local V12=vec()
+            local V23=vec()
+            local V31=vec()
+            for(I=1,3)
+            {
+                V12[I]=((V1[I]+V2[I])/2)
+                V23[I]=((V2[I]+V3[I])/2)
+                V31[I]=((V3[I]+V1[I])/2)
+            }
+            V12=V12:normalized()
+            V23=V23:normalized()
+            V31=V31:normalized()
+            subdivide(V1,V12,V31,Depth-1)
+            subdivide(V2,V23,V12,Depth-1)
+            subdivide(V3,V31,V23,Depth-1)
+            subdivide(V12,V23,V31,Depth-1)
+        }
+    }
+    A=0.525731112119133606
+    B=0.850650808352039932
+    Vertices=array(
+        vec(-A, 0, B),vec( A, 0, B),vec(-A, 0,-B),vec( A, 0,-B),
+        vec( 0, B, A),vec( 0, B,-A),vec( 0,-B, A),vec( 0,-B,-A),
+        vec( B, A, 0),vec(-B, A, 0),vec( B,-A, 0),vec(-B,-A, 0)
+    )
+    Triangles=array(
+        vec(1,5,2),vec(1,10,5),vec(10,6,5),vec(5,6,9),vec(5,9,2),
+        vec(9,11,2),vec(9,4,11),vec(6,4,9),vec(6,3,4),vec(3,8,4),
+        vec(8,11,4),vec(8,7,11),vec(8,12,7),vec(12,1,7),vec(1,2,7),
+        vec(7,2,11),vec(10,1,12),vec(10,12,3),vec(10,3,6),vec(8,3,12)
+    )
+    foreach(I,Triangle:vector=Triangles)
+    {
+        subdivide(Vertices[Triangle[1],vector],Vertices[Triangle[2],vector],Vertices[Triangle[3],vector],Division)
+    }
+}
+else
+{
+    switch(GeneratingState)
+    {
+        default,
+        #here code lol ???????
+        break
+        case 1,
+        #print("gen")
+        while(perf(CPUGenerationPercent))
+        {
+            if(Stack:count()>0)
+            {
+                local CurProcess=Stack:popTable()
+                "subdivideC"(CurProcess[1,vector],CurProcess[2,vector],CurProcess[3,vector],CurProcess[4,number])
+            }
+            else
+            {
+                GeneratingState=2
+                break
+            }
+        }
+        break
+        case 2,
+        if(holoCanCreate())
+        {
+            if(ToSpawn:count()>0)
+            {
+                local Cur=ToSpawn:popArray()
+                local V1=entity():toWorld(Cur[1,vector]*Radius)
+                local V2=entity():toWorld(Cur[2,vector]*Radius)
+                local V3=entity():toWorld(Cur[3,vector]*Radius)
+                X++
+                holoPoly(X,V1,V2,V3,"phoenix_storms/bluemetal",vec(255))
+            }
+            else
+            {
+                GeneratingState=0                
+            }
+        }
+        break
+    }
+}
