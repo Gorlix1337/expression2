@@ -1,0 +1,1824 @@
+#[
+    Made by: gorlix
+        
+        to do:
+        cursor for every player that is looking at the screen
+        ui graph (cool)
+        
+        
+    Features:
+        Cursor - navigate
+            : InteractionButton - (variable) which button to interact with windows.
+        
+        Windows - manage windows, with interaction button or through functions.
+            : WindowTable=window(Pos,Size) - returns a table of a window
+            : WindowTable:setPos(Pos) - change the position of a window.
+            : WindowTable:setSize(Size) - change the size of a window.
+            : WindowTable:setMinSize(Size) - minimum size of a window.
+            : WindowTable:setMaxSize(Size) - max size of a window.
+            : WindowTable:setName(Name) - change the name of a window.
+            : WindowTable:setCloseable(Bool) - 1:can close window, 0:cannot close window.
+            : WindowTable:setSizeable(Bool) - 1:can change the size of a window, 0:cannot.
+            : WindowTable:setColor(Vector) - change the color of the window.
+            : WindowTable:kill() - delete the window.
+        
+        Variables - a way of storing variables globally or inside of a window.
+            : p"variable type"(VariableName,Variable) - store variables inside of a current window.
+                                                        example: pN("boo",124) - stores number under "boo" name.
+            : p"variable type"(VariableName) - returns a stored variable.
+            : g"variable type"(VariableName,Variable) - store variables globally.
+            : g"variable type"(VariableName) - returns a globally stored variable.
+        
+        Easy EGP Indexes - take a new or previously used EGP index to use it again.
+            : newIndex() - returns a new index for a new egp object
+            : LastIndex - (variable) use this to get the last new egp index.  
+            : egpDelete() - delete a number
+                
+        Window callbacks - set up callbacks for a specific window.
+            : WindowTable:setCallbacks(
+                  table(
+                  "chatClk"="number"
+                  )
+              ) - table must contain; keys:the name of the callback, value of the key:what the callback returns. (example presented as a function)
+        
+        Window intervals - set up intervals for a specific window.
+            : WindowTable:setIntervals(
+                  table(
+                  "name of the timer" = DelayOfTheTimer
+                  )
+              ) - table must contain; keys:the name of the timers; value: how many miliseconds between iterations (use as clk("name of the timer") in the script)
+        
+        Window script - set up a script for a specific window.
+            : WindowTable:setScript("scriptName") - first, you have to create a void function with these variables:
+                                                     (Main:table,Persist:table,First,KeyClk,Key:string,ClickPos:vector2,CloseClk,MoveClk,SizeClk)
+                                                     second, you should copy the name of the function and paste it into string variable of the :setScript(String) 
+        
+        
+]#
+@inputs [XSYSTEM_Screen1 XSYSTEM_Screen2 XSYSTEM_Screen3 XSYSTEM_Screen4 XSYSTEM_Screen5 XSYSTEM_Screen6 XSYSTEM_Screen7 XSYSTEM_Screen8]:wirelink
+@persist [Windows CurWindow KeysTable PlayerInteractTable Callbacks Intervals Global Sounds SoundDurations SpareIndexes Task]:table
+@persist [FontSize LastIndex LastHoloIndex HoloIndex SoundIndex MaxObjects TaskProgress KeyboardTick]:number
+@persist [SpareSoundIndexes SpareHoloIndexes CursorArray]:array
+@persist [Font InteractionButton]:string
+@persist [Screens]:array
+@persist [GTable]:gtable
+@persist [ZVec2]:vector2
+@persist [Owner]:entity
+if(first())
+{
+    Owner=owner()
+    ZVec2=vec2()
+    InteractionButton="mouse_left"
+    Font="Courier New"
+    FontSize=14
+    MaxObjects=egpMaxObjects()
+    GTable=gTable("NEWOS",1)
+    function void pushScreen(Screen:wirelink)
+    {
+        local ScreenEnt=Screen:entity()
+        if(ScreenEnt:owner()==Owner)
+        {
+            Screens:pushWirelink(Screen)
+            SpareIndexes[ScreenEnt:id(),table]=table(
+            "SpareIndexes"=array(),
+            "Index"=0
+            )
+            Screen:egpClear()
+            Screen:egpDrawTopLeft(1)
+            Screen:egpGlobalFiltering(_TEXFILTER_POINT)
+        }
+    }
+    if(XSYSTEM_Screen1)
+    {
+        pushScreen(XSYSTEM_Screen1)
+    }
+    if(XSYSTEM_Screen2)
+    {
+        pushScreen(XSYSTEM_Screen2)
+    }
+    if(XSYSTEM_Screen3)
+    {
+        pushScreen(XSYSTEM_Screen3)
+    }
+    if(XSYSTEM_Screen4)
+    {
+        pushScreen(XSYSTEM_Screen4)
+    }
+    if(XSYSTEM_Screen5)
+    {
+        pushScreen(XSYSTEM_Screen5)
+    }
+    if(XSYSTEM_Screen6)
+    {
+        pushScreen(XSYSTEM_Screen6)
+    }
+    if(XSYSTEM_Screen7)
+    {
+        pushScreen(XSYSTEM_Screen7)
+    }
+    if(XSYSTEM_Screen8)
+    {
+        pushScreen(XSYSTEM_Screen8)
+    }
+    function number   gtN(VarName:string){return GTable[VarName,number]}
+    function string   gtS(VarName:string){return GTable[VarName,string]}
+    function vector   gtV(VarName:string){return GTable[VarName,vector]}
+    function vector2 gtV2(VarName:string){return GTable[VarName,vector2]}
+    function vector4 gtV4(VarName:string){return GTable[VarName,vector4]}
+    function array    gtR(VarName:string){return GTable[VarName,array]}
+    function table    gtT(VarName:string){return GTable[VarName,table]}
+    function entity   gtE(VarName:string){return GTable[VarName,entity]}
+    function angle    gtA(VarName:string){return GTable[VarName,angle]}
+    function wirelink gtW(VarName:string){return GTable[VarName,wirelink]}
+    
+    function void gtN(VarName:string,Write)          {GTable[VarName,number]=Write}
+    function void gtS(VarName:string,Write:string)   {GTable[VarName,string]=Write}
+    function void gtV(VarName:string,Write:vector)   {GTable[VarName,vector]=Write}
+    function void gtV2(VarName:string,Write:vector2) {GTable[VarName,vector2]=Write}
+    function void gtV4(VarName:string,Write:vector4) {GTable[VarName,vector4]=Write}
+    function void gtE(VarName:string,Write:entity)   {GTable[VarName,entity]=Write}
+    function void gtA(VarName:string,Write:angle)    {GTable[VarName,angle]=Write}
+    function void gtR(VarName:string,Write:array)    {GTable[VarName,array]=Write}
+    function void gtT(VarName:string,Write:table)    {GTable[VarName,table]=Write}
+    function void gtW(VarName:string,Write:wirelink) {GTable[VarName,wirelink]=Write}
+    
+    function number   gN(VarName:string){return Global[VarName,number]}
+    function string   gS(VarName:string){return Global[VarName,string]}
+    function vector   gV(VarName:string){return Global[VarName,vector]}
+    function vector2 gV2(VarName:string){return Global[VarName,vector2]}
+    function vector4 gV4(VarName:string){return Global[VarName,vector4]}
+    function array    gR(VarName:string){return Global[VarName,array]}
+    function table    gT(VarName:string){return Global[VarName,table]}
+    function entity   gE(VarName:string){return Global[VarName,entity]}
+    function angle    gA(VarName:string){return Global[VarName,angle]}
+    function wirelink gW(VarName:string){return Global[VarName,wirelink]}
+    
+    function void gN(VarName:string,Write)          {Global[VarName,number]=Write}
+    function void gS(VarName:string,Write:string)   {Global[VarName,string]=Write}
+    function void gV(VarName:string,Write:vector)   {Global[VarName,vector]=Write}
+    function void gV2(VarName:string,Write:vector2) {Global[VarName,vector2]=Write}
+    function void gV4(VarName:string,Write:vector4) {Global[VarName,vector4]=Write}
+    function void gE(VarName:string,Write:entity)   {Global[VarName,entity]=Write}
+    function void gA(VarName:string,Write:angle)    {Global[VarName,angle]=Write}
+    function void gR(VarName:string,Write:array)    {Global[VarName,array]=Write}
+    function void gT(VarName:string,Write:table)    {Global[VarName,table]=Write}
+    function void gW(VarName:string,Write:wirelink) {Global[VarName,wirelink]=Write}
+    
+    function number   pN(VarName:string){return CurWindow["Persist",table][VarName,number]}
+    function string   pS(VarName:string){return CurWindow["Persist",table][VarName,string]}
+    function vector   pV(VarName:string){return CurWindow["Persist",table][VarName,vector]}
+    function vector2 pV2(VarName:string){return CurWindow["Persist",table][VarName,vector2]}
+    function vector4 pV4(VarName:string){return CurWindow["Persist",table][VarName,vector4]}
+    function array    pR(VarName:string){return CurWindow["Persist",table][VarName,array]}
+    function table    pT(VarName:string){return CurWindow["Persist",table][VarName,table]}
+    function entity   pE(VarName:string){return CurWindow["Persist",table][VarName,entity]}
+    function angle    pA(VarName:string){return CurWindow["Persist",table][VarName,angle]}
+    function wirelink pW(VarName:string){return CurWindow["Persist",table][VarName,wirelink]}
+    
+    function void pN(VarName:string,Write)          {CurWindow["Persist",table][VarName,number]=Write}
+    function void pS(VarName:string,Write:string)   {CurWindow["Persist",table][VarName,string]=Write}
+    function void pV(VarName:string,Write:vector)   {CurWindow["Persist",table][VarName,vector]=Write}
+    function void pV2(VarName:string,Write:vector2) {CurWindow["Persist",table][VarName,vector2]=Write}
+    function void pV4(VarName:string,Write:vector4) {CurWindow["Persist",table][VarName,vector4]=Write}
+    function void pE(VarName:string,Write:entity)   {CurWindow["Persist",table][VarName,entity]=Write}
+    function void pA(VarName:string,Write:angle)    {CurWindow["Persist",table][VarName,angle]=Write}
+    function void pR(VarName:string,Write:array)    {CurWindow["Persist",table][VarName,array]=Write}
+    function void pT(VarName:string,Write:table)    {CurWindow["Persist",table][VarName,table]=Write}
+    function void pW(VarName:string,Write:wirelink) {CurWindow["Persist",table][VarName,wirelink]=Write}
+    
+    function array entity:keysPressed()
+    {
+        local Return=array()
+        local SteamID=This:steamID()
+        foreach(I,Key:string=KeysTable[SteamID,table]["Keys",table]:keys())
+        {
+            if(KeysTable[SteamID,table]["Keys",table][Key,number])
+            {
+                Return:pushString(Key)
+            }
+        }
+        return Return
+    }
+    function number array:isKeyCombination(CheckWith:array)
+    {
+        local Return=0
+        foreach(A,Key1:string=This)
+        {
+            foreach(B,Key2:string=CheckWith)
+            {
+                if(Key1==Key2)
+                {
+                    Return++
+                }
+            }
+        }
+        return Return==CheckWith:count()
+    }
+    function void sound(Path:string)
+    {
+        if(!SoundDurations[Path,number])
+        {
+            SoundDurations[Path,number]=soundDuration(Path)
+        }
+        foreach(I,Key:number=Sounds:keys())
+        {
+            local Sound=Sounds[Key,table]
+            if(Sound["Spawntime",number]+SoundDurations[Sound["Path",string],number]<curtime())
+            {
+                soundStop(Sound["Index",number])
+                SpareSoundIndexes:pushNumber(Sound["Index",number])
+                Sounds:remove(Key)
+            }
+        }
+        local NewSoundIndex=0
+        if(SpareSoundIndexes:count())
+        {
+            NewSoundIndex=SpareSoundIndexes:popNumber()
+        }
+        else
+        {
+            SoundIndex++
+            NewSoundIndex=SoundIndex
+        }
+        Sounds:pushTable(table(
+        "Spawntime"=curtime(),
+        "Path"=Path,
+        "Index"=NewSoundIndex,
+        "ID"=CurWindow:id()
+        ))
+        CurWindow["Screen",wirelink]:entity():soundPlay(NewSoundIndex,SoundDurations[Path,number],Path)
+        soundVolume(NewSoundIndex,CurWindow["Volume",number])
+    }
+    function number newIndex()
+    {
+        local Id=CurWindow["Screen",wirelink]:entity():id()
+        if(SpareIndexes[Id,table]["SpareIndexes",array]:count())
+        {
+            LastIndex=SpareIndexes[Id,table]["SpareIndexes",array]:popNumber()
+            CurWindow["UsedIndexes",array]:pushNumber(LastIndex)
+            printTable(table(""=LastIndex))
+            return LastIndex
+        }
+        SpareIndexes[Id,table]["Index",number]=SpareIndexes[Id,table]["Index",number]+1
+        LastIndex=SpareIndexes[Id,table]["Index",number]
+        printTable(table(""=LastIndex))
+        if(SpareIndexes[Id,table]["Index",number]>MaxObjects)
+        {
+            error("Out of EGP objects")
+        }
+        CurWindow["UsedIndexes",array]:pushNumber(LastIndex)
+        return LastIndex
+    }
+    function number newHoloIndex()
+    {
+        if(SpareHoloIndexes:count())
+        {
+            LastHoloIndex=SpareHoloIndexes:popNumber()
+            return LastHoloIndex
+        }
+        HoloIndex++
+        LastHoloIndex=HoloIndex
+        return LastHoloIndex
+    }
+    function void wirelink:egpDelete(I:number)
+    {
+        foreach(A,Ind:number=CurWindow["UsedIndexes",array])
+        {
+            if(Ind==I)
+            {
+                CurWindow["UsedIndexes",array]:remove(A)
+                break
+            }
+        }
+        This:egpRemove(I)
+        SpareIndexes[This:entity():id(),table]["SpareIndexes",array]:pushNumber(I)
+    }
+    function array generateWindowOutline(Size:vector2,Closeable:number,Sizeable:number)
+    {
+        local SizeX=Size:x()
+        local SizeY=Size:y()
+        local Outline=array(ZVec2,vec2(SizeX,0))
+        if(Closeable)
+        {
+            Outline=Outline:add(array(vec2(SizeX,10),vec2(SizeX-10,10),vec2(SizeX-10,0),vec2(SizeX,10),vec2(SizeX-10,10),vec2(SizeX,0)))
+        }
+        Outline=Outline:add(array(Size))
+        if(Sizeable)
+        {
+            Outline=Outline:add(array(vec2(SizeX-10,SizeY),vec2(SizeX,SizeY-10),Size))
+        }
+        return Outline:add(array(vec2(0,SizeY),ZVec2))
+    }
+    function table window(Pos:vector2,Size:vector2)
+    {
+        local EGP=CurWindow["Screen",wirelink] 
+        if(!EGP)
+        {
+            EGP=Screens[1,wirelink]
+        }
+        local Window=table(
+            "Screen"=EGP,
+            "Pos"=Pos,
+            "Size"=Size,
+            "Color"=vec(255),
+            "UsedIndexes"=array(),
+            "Persist"=table(),
+            "First"=1,
+            "Users"=table(),
+            "MinSize"=vec2(20),
+            "MaxSize"=vec2(512)
+        )
+        CurWindow=Window
+        local ParentBase=newIndex()
+        local WindowBase=newIndex()
+        local WindowOutline=newIndex()
+        Window["ParentBase",number]=ParentBase
+        Window["Base",number]=WindowBase
+        Window["BaseOutline",number]=WindowOutline
+        EGP:egpBox(ParentBase,Pos,ZVec2)
+        EGP:egpBox(WindowBase,ZVec2,Size)
+        EGP:egpParent(WindowBase,ParentBase)
+        EGP:egpLineStrip(WindowOutline,generateWindowOutline(Size,0,0))
+        EGP:egpColor(WindowOutline,vec(255)/4)
+        EGP:egpParent(WindowOutline,ParentBase)
+        Windows:unshiftTable(Window)
+        return Window
+    }
+    function void table:setVolume(Volume)
+    {
+        This["Volume",number]=Volume
+        foreach(I,Key:number=Sounds:keys())
+        {
+            local Sound=Sounds[Key,table]
+            if(Sound["ID",string]==CurWindow:id())
+            {
+                soundVolume(Sounds["Index",number],Volume)
+            }
+        }
+    }
+    function number table:ops()
+    {
+        return This["Ops",number]
+    }
+    function void table:updateName()
+    {
+        local DisplayName=This["Name",string]
+        if(DisplayName)
+        {
+            if(This["Name",string]:unicodeLength()*(FontSize/2)>This["Size",vector2]:x()-10*This["Closeable",number])
+            {
+                DisplayName=This["Name",string]:sub(0,round((This["Size",vector2]:x()-20-10*This["Closeable",number])/7))+"..."
+            }
+            This["Screen",wirelink]:egpSetText(This["BaseText",number],DisplayName)
+        }
+    }
+    function void table:setName(Name:string)
+    {
+        This["Name",string]=Name
+        local TextID=This["BaseText",number]
+        local EGP=This["Screen",wirelink]
+        if(Name)
+        {
+            if(!TextID)
+            {
+                EGP:egpText(newIndex(),Name,ZVec2)
+                EGP:egpFont(LastIndex,Font,FontSize)
+                EGP:egpAlign(LastIndex,0,0)
+                EGP:egpParent(LastIndex,This["ParentBase",number])
+                EGP:egpColor(LastIndex,This["Color",vector]/4)
+                This["BaseText",number]=LastIndex
+            }
+        }
+        else
+        {
+            if(TextID)
+            {
+                EGP:egpDelete(This["BaseText",number])
+                This["BaseText",number]=0
+            }
+        }
+        This:updateName()
+    }
+    function void table:setColor(Color:vector)
+    {
+        This["Color",vector]=Color
+        local EGP=This["Screen",wirelink]
+        EGP:egpColor(This["Base",number],Color)
+        if(Color)
+        {
+            EGP:egpColor(This["BaseOutline",number],Color/4)
+            EGP:egpColor(This["BaseText",number],Color/4)
+        }
+        else
+        {
+            EGP:egpColor(This["BaseOutline",number],vec(255))
+            EGP:egpColor(This["BaseText",number],vec(255))
+        }
+    }
+    function void table:setPos(Pos:vector2)
+    {
+        This["Pos",vector2]=Pos
+        This["Screen",wirelink]:egpPos(This["ParentBase",number],Pos)
+    }
+    function void table:setSize(Size:vector2)
+    {
+        This["Size",vector2]=Size
+        local EGP=This["Screen",wirelink]
+        EGP:egpLineStrip(This["BaseOutline",number],generateWindowOutline(Size,This["Closeable",number],This["Sizeable",number]))
+        EGP:egpSize(This["Base",number],Size)
+        This:updateName()
+    }
+    function void table:setMaterial(Material:string)
+    {
+        This["Material",string]=Material
+        This["Screen",wirelink]:egpMaterial(This["Base",number],Material)
+    }
+    function void table:setSizeable(Bool:number)
+    {
+        This["Sizeable",number]=Bool
+        This["Screen",wirelink]:egpLineStrip(This["BaseOutline",number],generateWindowOutline(This["Size",vector2],This["Closeable",number],Bool))
+    }
+    function void table:setCloseable(Bool:number)
+    {
+        This["Closeable",number]=Bool
+        This["Screen",wirelink]:egpLineStrip(This["BaseOutline",number],generateWindowOutline(This["Size",vector2],Bool,This["Sizeable",number]))
+    }
+    function void table:setMoveable(Bool:number)
+    {
+        This["Moveable",number]=Bool
+    }
+    function void table:setMaxSize(Size:vector2)
+    {
+        This["MaxSize",vector2]=Size
+        This:setSize(This["Size",vector2])
+    }
+    function void table:setMinSize(Size:vector2)
+    {
+        This["MinSize",vector2]=Size
+        This:setSize(This["Size",vector2])
+    }
+    function void table:setScript(FunctionName:string)
+    {
+        This["Script",string]=FunctionName
+    }
+    function void table:setCallbacks(CallbackTable:table)
+    {
+        Callbacks[This:id(),table]=table(
+        "Table"=This,
+        "CallbackTable"=CallbackTable
+        )
+    }
+    function void table:setIntervals(IntervalsTable:table)
+    {
+        foreach(I,K:string=IntervalsTable:keys())
+        {
+            if(Intervals[K,table]:count())
+            {
+                if(IntervalsTable[K,number]!=Intervals[K,table]["Delay",number])
+                {
+                    error("You can't create two identical timers with different delay")
+                }
+                Intervals[K,table]["Windows",table]:pushTable(This)
+            }
+            else
+            {
+                Intervals[K,table]=table(
+                "Windows"=table(This),
+                "Delay"=IntervalsTable[K,number]
+                )
+                timer(K,IntervalsTable[K,number])
+            }
+        }
+    }
+    function void table:kill()
+    {
+        This["Script",string](This["Screen",wirelink],This,This["Persist",table],This["First",number],1,"",ZVec2,1,0,0)
+        Callbacks:remove(This:id())
+        foreach(I,K:string=Intervals:keys())
+        {
+            foreach(A,WindowKey:number=Intervals[K,table]["Windows",table]:keys())
+            {
+                if(Intervals[K,table]["Windows",table][WindowKey,table]:id()==This:id())
+                {
+                    Intervals[K,table]["Windows",table]:remove(WindowKey)
+                    if(!Intervals[K,table]["Windows",table]:count())
+                    {
+                        Intervals:remove(K)
+                        stoptimer(K)
+                        break
+                    }
+                    break
+                }
+            }
+        }
+        local EGP=This["Screen",wirelink]
+        while(This["UsedIndexes",array]:count())
+        {
+            EGP:egpDelete(This["UsedIndexes",array]:popNumber())
+        }
+        This["DELETE",number]=1
+        foreach(I,K:number=Windows:keys())
+        {
+            local Window=Windows[K,table]
+            if(Window["DELETE",number])
+            {
+                Windows:remove(K)
+                break
+            }
+        }
+    }
+    function void table:reset()
+    {
+        local Pos=This["Pos",vector2]
+        local Size=This["Size",vector2]
+        local Script=This["Script",string]
+        This:kill()
+        window(Pos,Size):setScript(Script)
+    }
+    #USER LIBRARIES
+    function table table:ui(EGP:wirelink,ElementType:string,Name:string,Pos:vector2,Size:vector2,Color:vector)
+    {
+        if(!This["ui",table])
+        {
+            This["ui",table]=table()
+        }
+        local UI=table()
+        UI["Pos",vector2]=Pos
+        UI["Size",vector2]=Size
+        switch(ElementType)
+        {
+            case "Button",
+            UI["Type",string]="Button"
+            local BoxID=newIndex()
+            EGP:egpBox(BoxID,Pos,Size)
+            EGP:egpColor(BoxID,Color)
+            local TextID=newIndex()
+            EGP:egpText(TextID,Name,ZVec2)
+            EGP:egpFont(TextID,Font,FontSize)
+            EGP:egpAlign(TextID,1,1)
+            EGP:egpColor(TextID,Color/2)
+            EGP:egpParent(BoxID,This["ParentBase",number])
+            EGP:egpParent(TextID,BoxID)
+            UI["ParentBase",number]=TextID
+            break
+            case "Slider",
+            UI["Type",string]="Slider"
+            local BoxID=newIndex()
+            EGP:egpBox(BoxID,Pos,Size)
+            EGP:egpColor(BoxID,Color)
+            local Slidy=newIndex()
+            EGP:egpBox(Slidy,vec2(-Size:x()/2,-Size:y()/2),vec2(5,Size:y()))
+            EGP:egpColor(Slidy,Color/1.5)
+            EGP:egpParent(Slidy,BoxID)
+            EGP:egpParent(BoxID,This["ParentBase",number])
+            local TextID=newIndex()
+            EGP:egpText(TextID,Name+": 0",Pos+Size/2)
+            EGP:egpFont(TextID,Font,FontSize)
+            EGP:egpAlign(TextID,1,1)
+            EGP:egpColor(TextID,Color/2)
+            EGP:egpParent(TextID,This["ParentBase",number])
+            UI["ParentBase",number]=BoxID
+            UI["SliderEGP",number]=Slidy
+            UI["ValEGP",number]=TextID
+            UI["Name",string]=Name
+            UI["Min",number]=0
+            UI["Max",number]=1
+            break
+            case "Checkbox",
+            UI["Type",string]="Checkbox"
+            local BoxID=newIndex()
+            EGP:egpRoundedBox(BoxID,Pos,Size)
+            EGP:egpRadius(BoxID,Size:y()/2)
+            EGP:egpParent(BoxID,This["ParentBase",number])
+            EGP:egpColor(BoxID,Color)
+            local CircleID=newIndex()
+            EGP:egpCircle(CircleID,vec2(-Size:x()/2+Size:y()/2,0),vec2(Size:y()/2-Size:y()/10))
+            EGP:egpColor(CircleID,Color/2)
+            EGP:egpParent(CircleID,BoxID)
+            UI["Circle",number]=CircleID
+            local TextID=newIndex()
+            EGP:egpText(TextID,Name,Pos+vec2(Size:x()+Size:y()/10,Size:y()/2))
+            EGP:egpFont(TextID,Font,FontSize)
+            EGP:egpAlign(TextID,0,1)
+            EGP:egpColor(TextID,Color/2)
+            EGP:egpParent(TextID,This["ParentBase",number])
+            UI["ParentBase",number]=BoxID
+            break
+            case "Textbox",
+            UI["Type",string]="Textbox"
+            local BoxID=newIndex()
+            EGP:egpBox(BoxID,Pos,Size)
+            EGP:egpColor(BoxID,Color)
+            EGP:egpParent(BoxID,This["ParentBase",number])
+            local TextID=newIndex()
+            EGP:egpTextLayout(TextID,"sdfgsdfgsdfg",Pos,Size)
+            EGP:egpFont(TextID,Font,FontSize)
+            EGP:egpColor(TextID,Color/2)
+            EGP:egpParent(TextID,This["ParentBase",number])
+            break
+            default,
+            print("[UI] unknown ui element: "+ElementType)
+            break
+        }
+        This["ui",table]:pushTable(UI)
+        return UI
+    }
+    function void table:ui_maxvalue(Val)
+    {
+        This["Max",number]=Val
+    }
+    function void table:ui_minvalue(Val)
+    {
+        This["Min",number]=Val
+    }
+    function void table:ui_rounded(Bool)
+    {
+        This["Round",number]=Bool
+    }
+    function number table:ui_clk()
+    {
+        return curtime()==This["clk",number]
+    }
+    function string table:ui_sval()
+    {
+        
+    }
+    function number table:ui_nval()
+    {
+        return This["nval",number]
+    }
+    function void table:ui_process(EGP:wirelink,Cursor:vector2)
+    {
+        foreach(I,Key:number=This["ui",table]:keys())
+        {
+            local UI=This["ui",table][Key,table]
+            switch(UI["Type",string])
+            {
+                case "Button",
+                if(inrange(Cursor,UI["Pos",vector2],UI["Pos",vector2]+UI["Size",vector2]))
+                {
+                    UI["clk",number]=curtime()
+                }
+                break
+                case "Slider",
+                if(inrange(Cursor,UI["Pos",vector2],UI["Pos",vector2]+UI["Size",vector2]))
+                {
+                    local Remap=remap(Cursor:x(),UI["Pos",vector2]:x(),UI["Pos",vector2]:x()+UI["Size",vector2]:x(),UI["Min",number],UI["Max",number])
+                    if(UI["Round",number])
+                    {
+                        Remap=round(Remap)
+                    }
+                    EGP:egpSetText(UI["ValEGP",number],UI["Name",string]+": "+round(Remap,2))
+                    UI["nval",number]=Remap
+                    EGP:egpPos(UI["SliderEGP",number],vec2(remap(Remap,UI["Min",number],UI["Max",number],-UI["Size",vector2]:x()/2,UI["Size",vector2]:x()/2-5),-UI["Size",vector2]:y()/2))
+                }
+                break
+                case "Checkbox",
+                if(inrange(Cursor,UI["Pos",vector2],UI["Pos",vector2]+UI["Size",vector2]))
+                {
+                    local State=!UI["nval",number]
+                    UI["nval",number]=State
+                    UI["clk",number]=curtime()
+                    if(State)
+                    {
+                        EGP:egpPos(UI["Circle",number],vec2(UI["Size",vector2]:x()/2-UI["Size",vector2]:y()/2,0))
+                    }
+                    else
+                    {
+                        EGP:egpPos(UI["Circle",number],vec2(-UI["Size",vector2]:x()/2+UI["Size",vector2]:y()/2,0))
+                    }
+                }
+                break
+                case "Textbox",
+                if(inrange(Cursor,UI["Pos",vector2],UI["Pos",vector2]+UI["Size",vector2]))
+                {
+                    UI["clk",number]=curtime()
+                    This["ui",table]["CurrentTextChanger",table]=UI
+                }
+                break
+            }
+        }
+    }
+    
+    function vector2 worldToScreen(Fov:number,ScrW:number,ScrH:number,CameraAngles:angle,CameraPosition:vector,Vec:vector)
+    {
+        local Dir=-heading(CameraPosition,ang(0,0,180),Vec):forward()
+        local VProj=((4 * ScrH/(6*tan(Fov*0.5)))/CameraAngles:forward():dot(Dir))*Dir
+        return clamp(vec2((ScrW/2)+CameraAngles:right():dot(VProj),(ScrH/2)-CameraAngles:up():dot(VProj)),ZVec2,vec2(ScrW,ScrH))
+    }
+    
+    #USER LIBRARIES END
+    
+    
+    
+    #USER CODE
+    
+    function void test(EGP:wirelink,Main:table,Persist:table,First,KeyClk,Key:string,ClickPos:vector2,CloseClk,MoveClk,SizeClk)
+    {
+        if(First)
+        {
+            Main:setSizeable(1)
+            Main:setCloseable(1)
+            Main:setName("boo sqaure lol")
+            EGP:egpBox(newIndex(),vec2(20),vec2(50))
+            EGP:egpParent(LastIndex,Main["ParentBase",number])
+            pN("Box",LastIndex)
+            pN("rainbow",0)
+        }
+        if(tickClk())
+        {
+            pN("rainbow",pN("rainbow")+5)
+            if(pN("rainbow")>360)
+            {
+                pN("rainbow",0)
+            }
+            EGP:egpColor(pN("Box"),hsv2rgb(pN("rainbow"),1,1))
+        }
+        if(SizeClk)
+        {
+            EGP:egpSize(pN("Box"),Main["Size",vector2]-vec2(40))
+        }
+        #[
+        if(KeyClk&Key==InteractionButton)
+        {
+            Main:ui_process(EGP,ClickPos)
+        }
+        if(First)
+        {
+            Main:setName("Test")
+            Main:setSize(vec2(256))
+            Main:setPos(vec2(256))
+            Main:setCloseable(1)
+            pT("button",Main:ui(EGP,"Button","Button!",vec2(5,20),vec2(100,30),vec(0,200,0)))
+            pT("slider",Main:ui(EGP,"Slider","Slider!",vec2(5,60),vec2(100,30),vec(0,200,0)))
+            pT("slider"):ui_rounded(1)
+            pT("checkbox",Main:ui(EGP,"Checkbox","Checkbox!",vec2(5,100),vec2(40,20),vec(0,200,0)))
+            pT("textbox",Main:ui(EGP,"Textbox","This is a useless name!",vec2(5,130),vec2(100,100),vec(0,200,0)))
+        }
+        if(pT("button"):ui_clk())
+        {
+            Main:setColor(hsv2rgb(randint(0,360),1,1))
+        }
+        if(pT("checkbox"):ui_nval())
+        {
+            pN("I",pN("I")+1)
+            Main:setName(pN("I")+"")
+        }
+        ]#
+    }
+    function void updateconsolelog(Size:vector2)
+    {
+        gT("consoletable")["Screen",wirelink]:egpSize(gN("consoletext"),Size)
+        local Lines=gS("consolelog"):explode("\n")
+        local LinesCount=Lines:count()-1
+        local LinesForReal=0
+        local CanMax=floor((Size:y()-20)/FontSize)
+        local DisplayLog=""
+        for(I=Lines:count()-1-CanMax,Lines:count()-1)
+        {
+            LinesCount+=floor(Lines[I,string]:length()/(Size:x()/(FontSize/2)))
+        }
+        LinesForReal=LinesCount
+        for(I=LinesForReal-CanMax,LinesForReal)
+        {
+            DisplayLog+=Lines[I,string]+"\n"
+        }
+        gT("consoletable")["Screen",wirelink]:egpSetText(gN("consoletext"),DisplayLog)
+    }
+    function void consolelog(Log:string)
+    {
+        gS("consolelog",gS("consolelog")+Log+"\n")
+        updateconsolelog(gT("consoletable")["Screen",wirelink]:egpSize(gN("consoletext")))
+    }
+    function void runconsole(String:string)
+    {
+        local Exploded=String:explode(" ")
+        local Command=Exploded[1,string]
+        local Errored=1
+        switch(Command)
+        {
+            case "start",
+            foreach(I,Str:string=gT("appaliases"):keys())
+            {
+                if(Str==Exploded[2,string])
+                {
+                    Errored=0
+                    break
+                }
+            }
+            if(Errored)
+            {
+                consolelog("No such application: "+Exploded[2,string])
+            }
+            else
+            {
+                consolelog("Starting "+Exploded[2,string])
+                local W=window(vec2(128),vec2(256))
+                W:setScript(gT("appaliases")[Exploded[2,string],string])
+            }
+            break
+            default,
+            consolelog("No such command: "+Command)
+            break
+            case "applist",
+            consolelog("List of avaliable apps:")
+            foreach(I,Str:string=gT("appaliases"):keys())
+            {
+                consolelog("  "+Str)
+            }
+            break
+            case "help",
+            consolelog("List of commands:\n  start <appname> - starts an app\n  applist - returns list of apps")
+            break
+        }
+    }
+    function void console(EGP:wirelink,Main:table,Persist:table,First,KeyClk,Key:string,ClickPos:vector2,CloseClk,MoveClk,SizeClk)
+    {
+        if(First)
+        {
+            local New=newIndex()
+            gT("consoletable",Main)
+            gN("consoletext",New)
+            gS("consolelog","")
+            gE("o",Owner)
+            gT("appaliases",table(
+            "Task_Manager"="taskManager",
+            "Minesweeper"="minesweeper",
+            "Editor"="editor",
+            "A"="test",
+            "3DModel"="model3d"
+            ))
+            Main:setName("Console")
+            Main:setSizeable(1)
+            runOnChat(1)
+            Main:setCallbacks(table(
+            "chatClk"="number"
+            ))
+            EGP:egpTextLayout(New,"342365234",vec2(0,10),Main["Size",vector2])
+            EGP:egpFont(New,"Courier New",FontSize)
+            EGP:egpColor(New,vec(255))
+            EGP:egpParent(New,Main["ParentBase",number])
+            Main:setColor(vec())
+            consolelog("Console v1. Type 'help' for help.")
+        }
+        if(KeyClk&Key==InteractionButton&Main["User",entity]!=gE("consoleuser"))
+        {
+            gE("consoleuser",Main["User",entity])
+            consolelog("Console user is: "+Main["User",entity]:name())
+        }
+        if(chatClk(gE("consoleuser")))
+        {
+            local LastSaid=lastSaid()
+            runconsole(LastSaid)
+        }
+        if(SizeClk)
+        {
+            updateconsolelog(Main["Size",vector2])
+        }
+    }
+    local Console=window(vec2(312-256),vec2(200))
+    Console:setScript("console")
+    
+    function void model3d(EGP:wirelink,Main:table,Persist:table,First,KeyClk,Key:string,ClickPos:vector2,CloseClk,MoveClk,SizeClk)
+    {
+        if(KeyClk)
+        {
+            if(Key==InteractionButton)
+            {
+                Main:ui_process(EGP,ClickPos)
+            }
+        }
+        if(First)
+        {
+            Main:setName("3D Model Renderer")
+            Main:setColor(vec())
+            Main:setSizeable(1)
+            Main:setCloseable(1)
+            EGP:egpText(newIndex(),"Waiting for model",vec2(0,10))
+            EGP:egpFont(LastIndex,Font,FontSize)
+            EGP:egpParent(LastIndex,Main["ParentBase",number])
+            pN("egpstatus",LastIndex)
+            pS("renderstatus","Waiting for model")
+            pV("modelboxsize",vec(1))
+            pV("campos",vec())
+            pS("rawhttp","")
+            pA("camang",ang())
+            pR("vertexes",array())
+            pT("faces",table())
+            pR("drawn",array())
+            EGP:egpLineStrip(newIndex(),vec2(),vec2(5))
+            EGP:egpParent(LastIndex,Main["ParentBase",number])
+            pN("egplinebox",LastIndex)
+            pV2("windowsize",Main["Size",vector2])
+            runOnChat(1)
+            runOnHTTP(1)
+            Main:setCallbacks(table(
+            "httpClk"="number",
+            "chatClk"="number"
+            ))
+        }
+        if(chatClk(Main["User",entity])&pS("renderstatus")=="Waiting for model")
+        {
+            local Said=lastSaid()
+            if(Said:find("http"))
+            {
+                httpRequest(Said)
+            }
+        }
+        if(httpClk())
+        {
+            pS("rawhttp",httpData())
+            pS("renderstatus","Parsing Vertex")
+            EGP:egpSetText(pN("egpstatus"),"Parsing Vertex")
+        }
+        if(SizeClk)
+        {
+            pV2("windowsize",Main["Size",vector2])
+        }
+        if(tickClk())
+        { #(Fov:number,ScrW:number,ScrH:number,CameraAngles:angle,CameraPosition:vector,Vec:vector)
+            switch(pS("renderstatus"))
+            {
+                case "Parsing Vertex",
+                local Data=pS("rawhttp")
+                local Vertexes=pR("vertexes")
+                EGP:egpSetText(pN("egpstatus"),"Parsing Vertex "+Data:length())
+                while(perf(85))
+                {
+                    if(Data:find("v"))
+                    {
+                        VP=Data:sub(Data:find("v ")+2,Data:find("\n")-1)
+                        VA=VP:explode(" ") #Vertex String Array
+                        pS("rawhttp",Data:sub(Data:find("\n")+1))
+                        Vertexes:pushVector(vec(VA[1,string]:toNumber(),VA[2,string]:toNumber(),VA[3,string]:toNumber()))
+                    }
+                    else
+                    {
+                        pS("renderstatus","Parsing Faces")
+                    }
+                }
+                break
+                case "Parsing Faces",
+                local Data=pS("rawhttp")
+                local Faces=pT("faces")
+                local Vertexes=pR("vertexes")
+                local CamPos=pV("campos")
+                EGP:egpSetText(pN("egpstatus"),"Parsing Faces "+Data:length())
+                while(perf(85))
+                {
+                    if(Data:find("f "))
+                    {
+                        FP=Data:sub(Data:find("f ")+2,Data:find("\n")-1)
+                        FA=FP:explode(" ") #Vertex String Array
+                        pS("rawhttp",Data:sub(Data:find("\n")+1))
+                        local V1=Vertexes[FA[3,string]:toNumber(),vector]
+                        local V2=Vertexes[FA[2,string]:toNumber(),vector]
+                        local V3=Vertexes[FA[1,string]:toNumber(),vector]
+                        
+                        Faces[(V1+V2+V3):distance(CamPos),array]=array(V1,V2,V3)
+                    }
+                    else
+                    {
+                        pS("renderstatus","Drawing")
+                        EGP:egpSetText(pN("egpstatus"),"Drawing")
+                    }
+                }
+                break
+                case "Drawing",
+                local Faces=pT("faces")
+                if(Faces:count()>0)
+                {
+                    local MaxIndex=Faces:maxIndex()
+                    local DrawArray=Faces[MaxIndex,array]
+                    local W=pV2("windowsize"):x()
+                    local H=pV2("windowsize"):y()
+                    local CamAng=pA("camang")
+                    local CamPos=pV("campos")
+                    EGP:egpPoly(newIndex(),array(
+                    worldToScreen(100,W,H,CamAng,CamPos,DrawArray[1,vector]),
+                    worldToScreen(100,W,H,CamAng,CamPos,DrawArray[2,vector]),
+                    worldToScreen(100,W,H,CamAng,CamPos,DrawArray[3,vector])
+                    ))
+                    EGP:egpParent(LastIndex,Main["ParentBase",number])
+                    Faces:remove(MaxIndex)
+                }
+                else
+                {
+                    pS("renderstatus","Done")
+                    EGP:egpSetText(pN("egpstatus"),"Done")
+                }
+                break
+                default,
+                local W=pV2("windowsize"):x()
+                local H=pV2("windowsize"):y()
+                local CamAng=pA("camang")
+                local CamPos=pV("campos")
+                local BoxSize=pV("modelboxsize")
+                local P1=worldToScreen(100,W,H,CamAng,CamPos,BoxSize*vec(-0.5,0.5,0.5))
+                local P2=worldToScreen(100,W,H,CamAng,CamPos,BoxSize*vec(0.5,-0.5,0.5))
+                local P3=worldToScreen(100,W,H,CamAng,CamPos,BoxSize*vec(0.5,0.5,-0.5))
+                local P4=worldToScreen(100,W,H,CamAng,CamPos,BoxSize*vec(-0.5,-0.5,0.5))
+                local P5=worldToScreen(100,W,H,CamAng,CamPos,BoxSize*vec(0.5,-0.5,-0.5))
+                local P6=worldToScreen(100,W,H,CamAng,CamPos,BoxSize*vec(-0.5,0.5,-0.5))
+                local P7=worldToScreen(100,W,H,CamAng,CamPos,BoxSize*vec(0.5,0.5,0.5))
+                local P8=worldToScreen(100,W,H,CamAng,CamPos,BoxSize*vec(-0.5,-0.5,-0.5))
+                EGP:egpLineStrip(pN("egplinebox"),P1,P4,P8,P6,P1,P7,P3,P6,P3,P3,P5,P8,P5,P2,P7,P2,P4)
+                EGP:egpParent(pN("egplinebox"),Main["ParentBase",number])
+                foreach(I,Key:string=Main["User",entity]:keysPressed())
+                {
+                    switch(Key)
+                    {
+                        case "w",
+                        pV("campos",pV("campos")+pA("camang"):forward())
+                        break
+                        case "a",
+                        pV("campos",pV("campos")-pA("camang"):right())
+                        break
+                        case "s",
+                        pV("campos",pV("campos")-pA("camang"):forward())
+                        break
+                        case "d",
+                        pV("campos",pV("campos")+pA("camang"):right())
+                        break
+                        case "up",
+                        pA("camang",clamp(pA("camang")+ang(-1,0,0),ang(-89,-180,0),ang(89,180,0)))
+                        break
+                        case "left",
+                        pA("camang",clamp(pA("camang")+ang(0,1,0),ang(-89,-180,0),ang(89,180,0)))
+                        break
+                        case "down",
+                        pA("camang",clamp(pA("camang")+ang(1,0,0),ang(-89,-180,0),ang(89,180,0)))
+                        break
+                        case "right",
+                        pA("camang",clamp(pA("camang")+ang(0,-1,0),ang(-89,-180,0),ang(89,180,0)))
+                        break
+                    }
+                }
+                break
+            }
+        }
+    }
+    local Renderer=window(vec2(),vec2(200))
+    Renderer:setScript("model3d")
+    
+    function void editor(EGP:wirelink,Main:table,Persist:table,First,KeyClk,Key:string,ClickPos:vector2,CloseClk,MoveClk,SizeClk)
+    {
+        if(KeyClk&Key==InteractionButton)
+        {
+            Main:ui_process(EGP,ClickPos)
+        }
+        if(First)
+        {
+            Main:setName("Editor")
+            Main:setSize(vec2(256))
+            Main:setSizeable(1)
+            Main:setCloseable(1)
+            Main:setColor(vec(0,200,255))
+            Main:setPos(vec2(256))
+            Main:setMinSize(vec2(220,40))
+            Main:setIntervals(table(
+            "KeyboardSpam"=50
+            ))
+            pT("RunButton",Main:ui(EGP,"Button","Run",vec2(5,15),vec2(50,20),vec(0,150,0)))
+            pT("ClearButton",Main:ui(EGP,"Button","Clear",vec2(60,15),vec2(50,20),vec(150,0,0)))
+            pE("Keyboard",noentity())
+            pS("Code","")
+            pN("Delta",curtime())
+            EGP:egpBox(newIndex(),vec2(5,40),Main["Size",vector2]-vec2(10,45))
+            EGP:egpColor(LastIndex,vec(0,0,30))
+            EGP:egpParent(LastIndex,Main["ParentBase",number])
+            pN("CodeBackground",LastIndex)
+            EGP:egpTextLayout(newIndex(),"",vec2(5,40),Main["Size",vector2]-vec2(10,45))
+            EGP:egpFont(LastIndex,Font,FontSize)
+            EGP:egpParent(LastIndex,Main["ParentBase",number])
+            pN("CodeEGP",LastIndex)
+        }
+        if(pT("RunButton"):ui_clk())
+        {
+            #spawnExpression2(entity():pos()+vec(0,0,10),entity():angles(),entity():model()):remoteSetCode(pS("Code"))
+        }
+        if(pT("ClearButton"):ui_clk())
+        {
+            pS("Code","")
+            EGP:egpSetText(pN("CodeEGP"),"")
+        }
+        #[
+        if(keyboardClk())
+        {
+            if(KeyboardKey=="backspace")
+            {
+                pS("Code",pS("Code"):sub(0,pS("Code"):length()-1))
+            }
+            else
+            {
+                pS("Code",pS("Code")+KeyboardKey)
+            }
+            EGP:egpSetText(pN("CodeEGP"),pS("Code"))
+        }
+        ]#
+        #[
+        if(gE("Keyboard"))
+        {
+            local User=gE("Keyboard"):getOutput("User")[1,entity]
+            if(User==Main["User",entity])
+            {
+                local Char=gE("Keyboard"):getOutput("OutputChar")[1,string]
+                if(User:keyPressed("backspace"))
+                {
+                    Char="backspace"
+                }
+                if(changed(Char))
+                {
+                    pN("Delta",curtime())
+                    switch(Char)
+                    {
+                        case "backspace",
+                        
+                        break
+                        default,
+                        pS("Code",pS("Code")+Char)
+                        break
+                    }
+                }
+                if(curtime()>pN("Delta")+0.5)
+                {
+                    if(clk("KeyboardSpam"))
+                    {
+                        switch(Char)
+                        {
+                            case "backspace",
+                            pS("Code",pS("Code"):sub(0,pS("Code"):length()-1))
+                            break
+                            default,
+                            pS("Code",pS("Code")+Char)
+                            break
+                        }
+                    }
+                }
+                if(changed(pS("Code")))
+                {
+                    EGP:egpSetText(pN("CodeEGP"),pS("Code"))
+                }
+            }
+        }
+        ]#
+        if(SizeClk)
+        {
+            EGP:egpSize(pN("CodeBackground"),Main["Size",vector2]-vec2(10,45))
+            EGP:egpSize(pN("CodeEGP"),Main["Size",vector2]-vec2(10,45))
+        }
+    }
+    
+    function void minesweeper(EGP:wirelink,Main:table,Persist:table,First,KeyClk,Key:string,ClickPos:vector2,CloseClk,MoveClk,SizeClk)
+    {
+        if(KeyClk&Key==InteractionButton)
+        {
+            Main:ui_process(EGP,ClickPos)
+        }
+        if(First)
+        {
+            Main:setName("Launcher")
+            Main:setColor(vec(140))
+            Main:setSize(vec2(128,200))
+            pT("button",Main:ui(EGP,"Button","Launch",vec2(5,20),vec2(100,30),vec(0,200,0)))
+            pT("sliderx",Main:ui(EGP,"Slider","Size X",vec2(5,60),vec2(100,30),vec(0,200,0)))
+            pT("slidery",Main:ui(EGP,"Slider","Size Y",vec2(5,60+40),vec2(100,30),vec(0,200,0)))
+            pT("bomb_chance",Main:ui(EGP,"Slider","Bomb Chance",vec2(5,60+80),vec2(100,30),vec(0,200,0)))
+            pT("sliderx"):ui_maxvalue(8)
+            pT("sliderx"):ui_minvalue(1)
+            pT("bomb_chance"):ui_maxvalue(100)
+            pT("slidery"):ui_maxvalue(8)
+            pT("slidery"):ui_minvalue(1)
+            pT("bomb_chance"):ui_minvalue(1)
+            pT("sliderx"):ui_rounded(1)
+            pT("slidery"):ui_rounded(1)
+            pT("bomb_chance"):ui_rounded(1)
+        }
+        if(pT("button"):ui_clk())
+        {
+            local X=pT("sliderx"):ui_nval()
+            local Y=pT("slidery"):ui_nval()
+            local Bomb=pT("bomb_chance"):ui_nval()
+            local Window=window(Main["Pos",vector2]+vec2(20),vec2(256))
+            Window:setScript("minesweeperGame")
+            Window["Persist",table]["resx",number]=X
+            Window["Persist",table]["resy",number]=Y
+            Window["Persist",table]["bomb_chance",number]=Bomb
+        }
+    }
+    
+    function void minesweeperGame(EGP:wirelink,Main:table,Persist:table,First,KeyClk,Key:string,ClickPos:vector2,CloseClk,MoveClk,SizeClk)
+    {
+        if(First)
+        {
+            Main:setName("Minesweeper by Praxis")
+            Main:setSize(vec2(256))
+            Main:setCloseable(1)
+            Main:setColor(vec(140))
+            
+            # trash code start
+            
+            pV2("size_coef", Main["Size",vector2] / pN("resx"))
+            pT("ctypes", table())
+            pN("down_coef", pN("resx") - pN("resy"))
+            pV2("last_click_pos", vec2())
+            local Ctypes = pT("ctypes")
+            local NumberColors = array(
+                vec(50, 50, 180),
+                vec(50, 180, 50),
+                vec(180, 50, 50),
+                vec(50, 50, 120),
+                vec(120, 50, 50),
+                vec(50, 120, 120),
+                vec(15),
+                vec(100) 
+            )
+            pT("hider_inds", table())
+            local Hider_inds = pT("hider_inds")
+            pT("marked", table())
+            pT("flags_inds", table())
+            pT("expand_air", table())
+            pT("expanded_air", table())
+            pN("help_ind", newIndex())
+            pN("help_found", 0)
+            pV2("help_pos", vec2())
+            pN("help_deleted", 0)
+            
+            for (X = 1, pN("resx")) {
+                for (Y = 1, pN("resy")) {
+                    local CellPos = vec2(X, Y + pN("down_coef")) * pV2("size_coef") - pV2("size_coef")
+                    local CellSize = pV2("size_coef")
+                    local P = X + ", " + Y
+                    local IsBomb = randint(0, 100) <= pN("bomb_chance")       
+                    if (IsBomb) {
+                        EGP:egpBox(newIndex(), CellPos, CellSize)
+                        EGP:egpMaterial(LastIndex, "spawnicons/models/props_c17/oildrum001_explosive.png")
+                        EGP:egpColor(LastIndex, vec(255, 55, 55))
+                        EGP:egpParent(LastIndex, Main["ParentBase",number])
+                    }           
+                    Ctypes[P, string] = IsBomb ? "bomb" : "quantum"
+                }
+            }
+            for (X = 1, pN("resx")) {
+                for (Y = 1, pN("resy")) {
+                    local P = X + ", " + Y
+                    local Ctype = Ctypes[P, string]
+                    if (Ctype == "quantum") {
+                        local Neighs = 0
+                        for (I = 1, 8) {
+                            local NeighPos = round(vec2(X + sin(45 * I), Y + cos(45 * I)))
+                            local NeighType = Ctypes[NeighPos:x() + ", " + NeighPos:y(), string]
+                            if (NeighType == "bomb") {
+                                Neighs++    
+                            }
+                        }
+                        if (Neighs > 0) {
+                            local CellPos = vec2(X, Y + (pN("resx") - pN("resy"))) * pV2("size_coef") - pV2("size_coef") / 2
+                            local CellSize = pV2("size_coef")
+                            EGP:egpText(newIndex(), Neighs + "", CellPos)
+                            EGP:egpColor(LastIndex, NumberColors[Neighs,vector])
+                            EGP:egpFont(LastIndex, "CloseCaption_Bold")
+                            EGP:egpSize(LastIndex, pV2("size_coef"):length() / 1.5)
+                            EGP:egpAlign(LastIndex, 1, 1)
+                            EGP:egpParent(LastIndex, Main["ParentBase",number])
+                            Ctypes[P, string] = "number"
+                        } else { 
+                            Ctypes[P, string] = "air"        
+                        }
+                    }                 
+                    local CellPos = vec2(X, Y + pN("down_coef")) * pV2("size_coef") - pV2("size_coef")
+                    local CellSize = pV2("size_coef")
+                    EGP:egpBox(newIndex(), CellPos, CellSize) # hiders
+                    EGP:egpColor(LastIndex, vec(190))
+                    EGP:egpParent(LastIndex, Main["ParentBase",number])
+                    Hider_inds[P, number] = LastIndex
+                    EGP:egpBoxOutline(newIndex(), CellPos, CellSize) # outlines
+                    EGP:egpParent(LastIndex, Main["ParentBase",number])
+                    EGP:egpColor(LastIndex, vec(100))
+                    if (!pN("help_found") & Ctypes[P, string] == "air") { # help
+                        pN("help_found", 1)
+                        pV2("help_pos", CellPos)    
+                    }
+                }
+            }
+            local CellPos = pV2("help_pos")
+            local CellSize = pV2("size_coef")
+            EGP:egpBox(newIndex(), CellPos + (CellSize - CellSize / 1.32) / 2, CellSize / 1.32) # help
+            EGP:egpColor(LastIndex, vec(255, 200, 0))
+            EGP:egpParent(LastIndex, Main["ParentBase",number])
+            pN("help_ind", LastIndex)
+        }
+        if(tickClk())
+        {
+            if (ClickPos != vec2()) {
+                print(ClickPos)
+                local ClickPos = round((ClickPos - vec2(0, pN("down_coef")) * pV2("size_coef") - pV2("size_coef") / 2) / pV2("size_coef") + vec2(1))
+                if (inrange(ClickPos, vec2(1), vec2(pN("resx"), pN("resy")))) {
+                    if (changed(ClickPos)) {
+                        local Hider_inds = pT("hider_inds")
+                        local Hider_ind = Hider_inds[ClickPos:x() + ", " + ClickPos:y(), number]
+                        local Hider_ind_last = Hider_inds[pV2("last_click_pos"):x() + ", " + pV2("last_click_pos"):y(), number]
+                        EGP:egpColor(Hider_ind, EGP:egpColor(Hider_ind) / 1.16)
+                        EGP:egpColor(Hider_ind_last, EGP:egpColor(Hider_ind_last) * 1.16)
+                        pV2("last_click_pos", ClickPos)
+                    }
+                    local User = Main["User", entity]
+                    if (changed(User:keyAttack1()) & User:keyAttack1()) {
+                        local Hider_inds = pT("hider_inds")
+                        local CP = ClickPos:x() + ", " + ClickPos:y()
+                        local Hider_ind = Hider_inds[CP, number]
+                        local Ctypes = pT("ctypes")
+                        local CellPos = vec2(ClickPos:x(), ClickPos:y() + pN("down_coef")) * pV2("size_coef") - pV2("size_coef")
+                        local CellSize = pV2("size_coef")
+                        local Marked = pT("marked")
+                        if (!Marked:exists(CP)) {
+                            if (Ctypes[CP, string] == "bomb") { # you lose
+                                
+                            } elseif (Ctypes[CP, string] == "air") {
+                                local Expand_air = pT("expand_air")
+                                Expand_air:pushVector2(vec2(ClickPos:x(), ClickPos:y()))
+                            }
+                            EGP:egpRemove(Hider_ind)
+                            Hider_inds:remove(CP)
+                        }
+                        if (!pN("help_deleted")) {
+                            EGP:egpDelete(pN("help_ind"))
+                            pN("help_deleted", 1)
+                        }
+                    }
+                    if (changed(User:keyAttack2()) & User:keyAttack2()) {
+                        local CellPos = vec2(ClickPos:x(), ClickPos:y() + pN("down_coef")) * pV2("size_coef") - pV2("size_coef")
+                        local CellSize = pV2("size_coef")
+                        local Marked = pT("marked")
+                        local Flags_inds = pT("flags_inds")
+                        local CP = ClickPos:x() + ", " + ClickPos:y()
+                        local Hider_inds = pT("hider_inds")
+                        if (Hider_inds:exists(CP)) {
+                            if (!Marked:exists(CP)) {
+                                Marked[CP, number] = 1    
+                            } else {
+                                Marked:remove(CP)
+                            }
+                            if (Marked[CP, number]) {
+                                EGP:egpBox(newIndex(), CellPos + (CellSize - CellSize / 1.32) / 2, CellSize / 1.32) # flag
+                                EGP:egpColor(LastIndex, vec(255, 50, 50))
+                                EGP:egpParent(LastIndex, Main["ParentBase",number])
+                                Flags_inds[CP, number] = LastIndex
+                            } else {
+                                EGP:egpDelete(Flags_inds[CP, number])
+                                Flags_inds:remove(CP)
+                            }
+                        }
+                    }
+                }
+            }
+            if (pT("expand_air"):count() > 0) {
+                local Expand_air = pT("expand_air")  
+                local Cur_air = Expand_air[1, vector2]
+                local Ctypes = pT("ctypes")
+                local Expanded_air = pT("expanded_air")  
+                local Marked = pT("marked")       
+                Expanded_air[Cur_air:x() + ", " + Cur_air:y(), number] = 1
+                for (I = 1, 8) {
+                    local Neigh_air = round(vec2(Cur_air:x() + sin(45 * I), Cur_air:y() + cos(45 * I)))
+                    local NCP = Neigh_air:x() + ", " + Neigh_air:y()
+                    if (!Expanded_air[NCP, number] & (Ctypes[NCP, string] == "air" | Ctypes[NCP, string] == "number") & !Marked:exists(NCP)) {
+                        local Hider_inds = pT("hider_inds")
+                        if (Hider_inds:exists(NCP)) {
+                            local Hider_ind = Hider_inds[NCP, number]
+                            if (Ctypes[NCP, string] == "air") {
+                                Expand_air:pushVector2(vec2(Neigh_air:x(), Neigh_air:y()))
+                            }
+                            EGP:egpRemove(Hider_ind)
+                            Hider_inds:remove(NCP)      
+                        }                       
+                    }
+                }
+                Expand_air:remove(1)
+            }
+            # trash code end
+        } 
+    }
+    
+    function void taskManager(EGP:wirelink,Main:table,Persist:table,First,KeyClk,Key:string,ClickPos:vector2,CloseClk,MoveClk,SizeClk)
+    {
+        if(First)
+        {
+            Main:setName("Task Manager")
+            Main:setCloseable(1)
+            Persist["Lines",array]=array()
+        }
+        if(changed(Windows:count())|First)
+        {
+            if(Persist["Lines",array]:count()<Windows:count())
+            {
+                for(I=1,Windows:count()-Persist["Lines",array]:count())
+                {
+                    Persist["Lines",array]:pushNumber(newIndex())
+                    EGP:egpText(LastIndex,"fsdf",vec2(2,15*Persist["Lines",array]:count()))
+                    EGP:egpFont(LastIndex,Font,FontSize)
+                    EGP:egpParent(LastIndex,Main["BaseText",number])
+                    EGP:egpColor(LastIndex,vec())
+                }
+            }
+        }
+        if(clk("updateOps"))
+        {
+            foreach(I,WindowKey:number=Windows:keys())
+            {
+                local Window=Windows[WindowKey,table]
+                EGP:egpSetText(Persist["Lines",array][I,number],Window["Name",string]:sub(0,15)+" - "+Window:ops()+" ops")
+            }
+        }
+    }
+    
+    #USER CODE END
+    
+    runOnTick(1)
+    runOnPlayerConnect(1)
+    runOnPlayerDisconnect(1)
+    runOnKeys(players(),1)
+}
+else
+{
+    if(playerConnectClk()|playerDisconnectClk())
+    {
+        runOnKeys(players(),1)
+    }
+    local Presser=keyClk()
+    local TickClk=tickClk()
+    local ClkName=clkName()
+    if(ClkName!="")
+    {
+        if(Intervals[ClkName,table])
+        {
+            foreach(I,WindowKey:number=Intervals[ClkName,table]["Windows",table]:keys())
+            {
+                CurWindow=Intervals[ClkName,table]["Windows",table][WindowKey,table]
+                CurWindow["Script",string](CurWindow["Screen",wirelink],CurWindow,CurWindow["Persist",table],CurWindow["First",number],0,"",ZVec2,0,0,0)
+                timer(ClkName,Intervals[ClkName,table]["Delay",number])
+            }
+        }
+        else
+        {
+            error("Do not use timer(string,number) function! Use the Window:setIntervals(table(\"Name\"=Delay)) and callback from the timer inside of the window script with clk(\"Name\")")
+        }
+    }
+    if(Presser)
+    {
+        local PresserSteamID=Presser:steamID()
+        local Key=keyClkPressed()
+        if(!KeysTable[PresserSteamID,table])
+        {
+            KeysTable[PresserSteamID,table]=table(
+            "Keys"=table()
+            )
+        }
+        KeysTable[PresserSteamID,table]["Keys",table][Key,number]=!KeysTable[PresserSteamID,table]["Keys",table][Key,number]
+        KeysTable[PresserSteamID,table]["Delta",number]=curtime()
+        KeysTable[PresserSteamID,table]["ChangedKey",string]=""
+        local Down=0
+        foreach(I,Key:string=KeysTable[PresserSteamID,table]["Keys",table]:keys())
+        {
+            if(KeysTable[PresserSteamID,table]["Keys",table][Key,number])
+            {
+                Down=1
+                KeysTable[PresserSteamID,table]["ChangedKey",string]=Key
+                break
+            }
+        }
+        KeysTable[PresserSteamID,table]["IsKeyDown",number]=Down
+        local Cursor=ZVec2
+        local CurEGP=nowirelink()
+        foreach(I,EGP:wirelink=Screens)
+        {
+            local NewCursor=EGP:egpCursor(Presser)
+            if(NewCursor!=vec2(-1))
+            {
+                CurEGP=EGP
+                Cursor=NewCursor
+                break
+            }
+        }
+        if(KeysTable[PresserSteamID,table]["Keys",table][Key,number])
+        {
+            if(Cursor!=ZVec2)
+            {
+                foreach(I,K:number=Windows:keys())
+                {
+                    local Window=Windows[K,table]
+                    if(Window["Screen",wirelink]!=CurEGP)
+                    {
+                        continue
+                    }
+                    local WindowPos=Window["Pos",vector2]
+                    local WindowSize=Window["Size",vector2]
+                    local LocalCursor=Cursor-WindowPos
+                    if(inrange(LocalCursor,ZVec2,WindowSize))
+                    {
+                        if(Key==InteractionButton)
+                        {
+                            Window["User",entity]=Presser
+                        }
+                        if(!Window["Users",table][PresserSteamID,table])
+                        {
+                            Window["Users",table][PresserSteamID,table]=table("User"=Presser)
+                        }
+                        #initialize reorder here
+                        if(Key==InteractionButton&inrange(LocalCursor,ZVec2,vec2(WindowSize:x(),10)))
+                        {
+                            if(Window["Closeable",number]&LocalCursor:x()>WindowSize:x()-10)
+                            {
+                                Window:kill()
+                                break
+                            }
+                            else
+                            {
+                                Window["Users",table][PresserSteamID,table]["Moving",number]=1
+                                Window["LocalGrab",vector2]=LocalCursor
+                                break
+                            }
+                        }
+                        elseif(Window["Sizeable",number]&Key==InteractionButton&inrange(LocalCursor,WindowSize-vec2(10),WindowSize))
+                        {
+                            Window["Users",table][PresserSteamID,table]["Sizing",number]=1
+                            break
+                        }
+                        else
+                        {
+                            CurWindow=Window
+                            Window["Script",string](Window["Screen",wirelink],Window,Window["Persist",table],Window["First",number],1,Key,LocalCursor,0,0,0)
+                            break
+                        }
+                    }
+                }
+            }
+        }
+        else
+        {
+            if(Key==InteractionButton)
+            {
+                foreach(I,K:number=Windows:keys())
+                {
+                    local Window=Windows[K,table]
+                    CurWindow=Window
+                    if(Window["User",entity]==Presser)
+                    {
+                        if(!inrange(Cursor-Window["Pos",vector2],ZVec2,Window["Size",vector2]))
+                        {
+                            Window["User",entity]=noentity()
+                        }
+                    }
+                    foreach(I,UserSteamID:string=Window["Users",table]:keys())
+                    {
+                        local UserTable=Window["Users",table][UserSteamID,table]
+                        if(CurEGP!=Window["Screen",wirelink]&CurEGP!=nowirelink()&UserTable["Moving",number]&!CurEGP:egpObjectIndexes():count())
+                        {
+                            Window["Screen",wirelink]:egpSaveFrame("transition")
+                            CurEGP:egpLoadFrame("transition")
+                            SpareIndexes[CurEGP:entity():id(),table]["Index",number]=SpareIndexes[CurEGP:entity():id(),table]["Index",number]+Window["UsedIndexes",array]:count()
+                            Task:pushTable(table(
+                            "Type"="DeleteCompareObjects",
+                            "Screen"=CurEGP,
+                            "ToDelete"=CurEGP:egpObjectIndexes(),
+                            "NotToDelete"=Window["UsedIndexes",array]
+                            ))
+                            SpareIndexes[Window["Screen",wirelink]:entity():id(),table]["SpareIndexes",array]=SpareIndexes[Window["Screen",wirelink]:entity():id(),table]["SpareIndexes",array]:add(Window["UsedIndexes",array])
+                            Task:pushTable(table(
+                            "Type"="DeleteObjects",
+                            "Screen"=Window["Screen",wirelink],
+                            "ToDelete"=Window["UsedIndexes",array]
+                            ))
+                            Window["Screen",wirelink]=CurEGP
+                            Window:setPos(CurEGP:egpCursor(Presser)-Window["LocalGrab",vector2])
+                        }
+                        if(Presser==Window["Users",table][UserSteamID,table]["User",entity])
+                        {
+                            Window["Script",string](Window["Screen",wirelink],Window,Window["Persist",table],Window["First",number],0,InteractionButton,ZVec2,0,UserTable["Moving",number],UserTable["Sizing",number])
+                            Window["Users",table]:remove(UserSteamID)
+                            break
+                        }
+                    }
+                }
+            }
+        }
+    }
+    if(!TickClk&!Presser)
+    {
+        foreach(I,TableID:string=Callbacks:keys())
+        {
+            foreach(I,CallbackName:string=Callbacks[TableID,table]["CallbackTable",table]:keys())
+            {
+                switch(Callbacks[TableID,table]["CallbackTable",table][CallbackName,string]:lower())
+                {
+                    case "number",
+                    if(CallbackName()[number])
+                    {
+                        CurWindow=Callbacks[TableID,table]["Table",table]
+                        Callbacks[TableID,table]["Table",table]["Script",string](Callbacks[TableID,table]["Table",table]["Screen",wirelink],Callbacks[TableID,table]["Table",table],Callbacks[TableID,table]["Table",table]["Persist",table],Callbacks[TableID,table]["Table",table]["First",number],0,"",ZVec2,0,0,0)
+                    }
+                    break
+                    case "entity",
+                    if(CallbackName()[entity])
+                    {
+                        CurWindow=Callbacks[TableID,table]["Table",table]
+                        Callbacks[TableID,table]["Table",table]["Script",string](Callbacks[TableID,table]["Table",table]["Screen",wirelink],Callbacks[TableID,table]["Table",table],Callbacks[TableID,table]["Table",table]["Persist",table],Callbacks[TableID,table]["Table",table]["First",number],0,"",ZVec2,0,0,0)
+                    }
+                    break
+                    case "string",
+                    if(CallbackName()[string])
+                    {
+                        CurWindow=Callbacks[TableID,table]["Table",table]
+                        Callbacks[TableID,table]["Table",table]["Script",string](Callbacks[TableID,table]["Table",table]["Screen",wirelink],Callbacks[TableID,table]["Table",table],Callbacks[TableID,table]["Table",table]["Persist",table],Callbacks[TableID,table]["Table",table]["First",number],0,"",ZVec2,0,0,0)
+                    }
+                    break
+                    case "vector",
+                    if(CallbackName()[vector])
+                    {
+                        CurWindow=Callbacks[TableID,table]["Table",table]
+                        Callbacks[TableID,table]["Table",table]["Script",string](Callbacks[TableID,table]["Table",table]["Screen",wirelink],Callbacks[TableID,table]["Table",table],Callbacks[TableID,table]["Table",table]["Persist",table],Callbacks[TableID,table]["Table",table]["First",number],0,"",ZVec2,0,0,0)
+                    }
+                    break
+                    case "vector2",
+                    if(CallbackName()[vector2])
+                    {
+                        CurWindow=Callbacks[TableID,table]["Table",table]
+                        Callbacks[TableID,table]["Table",table]["Script",string](Callbacks[TableID,table]["Table",table]["Screen",wirelink],Callbacks[TableID,table]["Table",table],Callbacks[TableID,table]["Table",table]["Persist",table],Callbacks[TableID,table]["Table",table]["First",number],0,"",ZVec2,0,0,0)
+                    }
+                    break
+                    case "vector4",
+                    if(CallbackName()[vector4])
+                    {
+                        CurWindow=Callbacks[TableID,table]["Table",table]
+                        Callbacks[TableID,table]["Table",table]["Script",string](Callbacks[TableID,table]["Table",table]["Screen",wirelink],Callbacks[TableID,table]["Table",table],Callbacks[TableID,table]["Table",table]["Persist",table],Callbacks[TableID,table]["Table",table]["First",number],0,"",ZVec2,0,0,0)
+                    }
+                    break
+                    case "complex",
+                    if(CallbackName()[complex])
+                    {
+                        CurWindow=Callbacks[TableID,table]["Table",table]
+                        Callbacks[TableID,table]["Table",table]["Script",string](Callbacks[TableID,table]["Table",table]["Screen",wirelink],Callbacks[TableID,table]["Table",table],Callbacks[TableID,table]["Table",table]["Persist",table],Callbacks[TableID,table]["Table",table]["First",number],0,"",ZVec2,0,0,0)
+                    }
+                    break
+                    case "matrix",
+                    if(CallbackName()[matrix])
+                    {
+                        CurWindow=Callbacks[TableID,table]["Table",table]
+                        Callbacks[TableID,table]["Table",table]["Script",string](Callbacks[TableID,table]["Table",table]["Screen",wirelink],Callbacks[TableID,table]["Table",table],Callbacks[TableID,table]["Table",table]["Persist",table],Callbacks[TableID,table]["Table",table]["First",number],0,"",ZVec2,0,0,0)
+                    }
+                    break
+                    case "matrix2",
+                    if(CallbackName()[matrix2])
+                    {
+                        CurWindow=Callbacks[TableID,table]["Table",table]
+                        Callbacks[TableID,table]["Table",table]["Script",string](Callbacks[TableID,table]["Table",table]["Screen",wirelink],Callbacks[TableID,table]["Table",table],Callbacks[TableID,table]["Table",table]["Persist",table],Callbacks[TableID,table]["Table",table]["First",number],0,"",ZVec2,0,0,0)
+                    }
+                    break
+                    case "matrix4",
+                    if(CallbackName()[matrix4])
+                    {
+                        CurWindow=Callbacks[TableID,table]["Table",table]
+                        Callbacks[TableID,table]["Table",table]["Script",string](Callbacks[TableID,table]["Table",table]["Screen",wirelink],Callbacks[TableID,table]["Table",table],Callbacks[TableID,table]["Table",table]["Persist",table],Callbacks[TableID,table]["Table",table]["First",number],0,"",ZVec2,0,0,0)
+                    }
+                    break
+                    case "ranger",
+                    if(CallbackName()[ranger])
+                    {
+                        CurWindow=Callbacks[TableID,table]["Table",table]
+                        Callbacks[TableID,table]["Table",table]["Script",string](Callbacks[TableID,table]["Table",table]["Screen",wirelink],Callbacks[TableID,table]["Table",table],Callbacks[TableID,table]["Table",table]["Persist",table],Callbacks[TableID,table]["Table",table]["First",number],0,"",ZVec2,0,0,0)
+                    }
+                    break
+                    case "array",
+                    if(CallbackName()[array])
+                    {
+                        CurWindow=Callbacks[TableID,table]["Table",table]
+                        Callbacks[TableID,table]["Table",table]["Script",string](Callbacks[TableID,table]["Table",table]["Screen",wirelink],Callbacks[TableID,table]["Table",table],Callbacks[TableID,table]["Table",table]["Persist",table],Callbacks[TableID,table]["Table",table]["First",number],0,"",ZVec2,0,0,0)
+                    }
+                    break
+                    case "bone",
+                    if(CallbackName()[bone])
+                    {
+                        CurWindow=Callbacks[TableID,table]["Table",table]
+                        Callbacks[TableID,table]["Table",table]["Script",string](Callbacks[TableID,table]["Table",table]["Screen",wirelink],Callbacks[TableID,table]["Table",table],Callbacks[TableID,table]["Table",table]["Persist",table],Callbacks[TableID,table]["Table",table]["First",number],0,"",ZVec2,0,0,0)
+                    }
+                    break
+                    case "wirelink",
+                    if(CallbackName()[wirelink])
+                    {
+                        CurWindow=Callbacks[TableID,table]["Table",table]
+                        Callbacks[TableID,table]["Table",table]["Script",string](Callbacks[TableID,table]["Table",table]["Screen",wirelink],Callbacks[TableID,table]["Table",table],Callbacks[TableID,table]["Table",table]["Persist",table],Callbacks[TableID,table]["Table",table]["First",number],0,"",ZVec2,0,0,0)
+                    }
+                    break
+                    case "table",
+                    if(CallbackName()[table])
+                    {
+                        CurWindow=Callbacks[TableID,table]["Table",table]
+                        Callbacks[TableID,table]["Table",table]["Script",string](Callbacks[TableID,table]["Table",table]["Screen",wirelink],Callbacks[TableID,table]["Table",table],Callbacks[TableID,table]["Table",table]["Persist",table],Callbacks[TableID,table]["Table",table]["First",number],0,"",ZVec2,0,0,0)
+                    }
+                    break
+                    default,
+                    print("Non existent callback return type: "+Callbacks[TableID,table]["CallbackTable",table][CallbackName,string])
+                    break
+                }
+            }
+        }
+    }
+    if(TickClk)
+    {
+        if(KeyboardTick==1)
+        {
+            KeyboardTick=-4
+        }
+        KeyboardTick++
+        foreach(I,K:number=Windows:keys())
+        {
+            local Window=Windows[K,table]
+            foreach(I,UserSteamID:string=Window["Users",table]:keys())
+            {
+                local UserTable=Window["Users",table][UserSteamID,table]
+                local Cursor=vec2(-1) 
+                local CurEGP=nowirelink()
+                foreach(I,EGP:wirelink=Screens)
+                {
+                    local NewCursor=EGP:egpCursor(UserTable["User",entity])
+                    if(NewCursor!=vec2(-1))
+                    {
+                        Cursor=NewCursor
+                        CurEGP=EGP
+                        break
+                    }
+                }
+                if(Cursor==vec2(-1)|CurEGP!=Window["Screen",wirelink])
+                {
+                    continue
+                }
+                if(UserTable["Moving",number])
+                {
+                    Window:setPos(round(Cursor-Window["LocalGrab",vector2]))
+                }
+                elseif(UserTable["Sizing",number])
+                {
+                    Window:setSize(round(clamp(Cursor-Window["Pos",vector2],Window["MinSize",vector2],Window["MaxSize",vector2])/2)*2)
+                }
+            }
+            local Cursor=ZVec2
+            local CurEGP=nowirelink()
+            foreach(I,EGP:wirelink=Screens)
+            {
+                local NewCursor=EGP:egpCursor(Window["User",entity])
+                if(NewCursor!=vec2(-1))
+                {
+                    Cursor=NewCursor
+                    CurEGP=EGP
+                    break
+                }
+            }
+            if(Window["Script",string])
+            {
+                local LocalCursor=ZVec2
+                if(Window["User",entity]:aimEntity()==CurEGP:entity())
+                {
+                    LocalCursor=clamp(Cursor-Window["Pos",vector2],ZVec2,Window["Size",vector2])
+                }
+                local Opcount=opcounter()
+                CurWindow=Window
+                Window["Script",string](Window["Screen",wirelink],Window,Window["Persist",table],Window["First",number],KeysTable[Window["User",entity]:steamID(),table]["IsKeyDown",number]&KeyboardTick==1&curtime()>KeysTable[Window["User",entity]:steamID(),table]["Delta",number]+0.5,KeysTable[Window["User",entity]:steamID(),table]["ChangedKey",string],LocalCursor,0,0,0)
+                Window["Ops",number]=opcounter()-Opcount
+                if(Window["First",number])
+                {
+                    Window["First",number]=0
+                }
+            }
+        }
+        if(Task:count())
+        {
+            local CurrentTask=Task:popTable()
+            local ScreenID=CurrentTask["Screen",wirelink]:entity():id()
+            switch(CurrentTask["Type",string])
+            {
+                case "DeleteCompareObjects",
+                local Refactored=table()
+                foreach(I,Num:number=CurrentTask["NotToDelete",array])
+                {
+                    Refactored[Num,number]=1
+                }
+                foreach(I,Num:number=CurrentTask["ToDelete",array])
+                {
+                    if(Refactored:exists(Num))
+                    {
+                        continue
+                    }
+                    CurrentTask["Screen",wirelink]:egpRemove(Num)
+                }
+                break
+                case "DeleteObjects",
+                foreach(I,Num:number=CurrentTask["ToDelete",array])
+                {
+                    CurrentTask["Screen",wirelink]:egpRemove(Num)
+                }
+                break
+            }
+        }
+    }
+}
+
